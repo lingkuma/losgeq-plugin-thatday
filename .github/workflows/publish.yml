@@ -48,6 +48,7 @@ jobs:
           mkdir -p .plugin .release
 
           cp package.json .plugin/
+          cp LICENSE .plugin/
           cp icon.png .plugin/
           cp README.md README.zh-CN.md .plugin/
           cp -R dist .plugin/dist
