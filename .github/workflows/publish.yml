@@ -1,0 +1,72 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Package plugin
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          NAME="$(node -p "require('./package.json').name")"
+          VERSION="$(node -p "require('./package.json').version")"
+          ZIP_NAME="${NAME}-v${VERSION}.zip"
+
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" && "${GITHUB_REF_NAME}" != "v${VERSION}" ]]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package version v${VERSION}."
+            exit 1
+          fi
+
+          rm -rf .plugin .release
+          mkdir -p .plugin .release
+
+          cp package.json .plugin/
+          cp icon.png .plugin/
+          cp README.md README.zh-CN.md .plugin/
+          cp -R dist .plugin/dist
+
+          (cd .plugin && zip -r "../.release/${ZIP_NAME}" .)
+
+          echo "zip_name=${ZIP_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "zip_path=.release/${ZIP_NAME}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload packaged artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.zip_name }}
+          path: ${{ steps.package.outputs.zip_path }}
+
+      - name: Publish GitHub Release
+        if: github.event_name == 'push' && github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.package.outputs.zip_path }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
