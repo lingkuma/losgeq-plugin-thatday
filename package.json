@@ -15,6 +15,7 @@
   "logseq": {
     "id": "logseq-plugin-thatday",
     "title": "That Day",
+    "icon": "icon.png",
     "description": "Insert the date of the current journal page."
   },
   "dependencies": {
