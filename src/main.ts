@@ -26,6 +26,7 @@ type PageTarget = string | { uuid: string };
 type ThatDayContext = {
   thatDay: string;
   pageTarget: PageTarget;
+  pageName: string | null;
 };
 
 type DatascriptQuery = (query: string, ...inputs: unknown[]) => Promise<unknown>;
@@ -136,16 +137,20 @@ async function getPageFromBlockUuid(blockUuid: string | undefined): Promise<Page
 async function resolvePageContext(page: PageLike | null | undefined): Promise<ThatDayContext | null> {
   const thatDay = dateFromPage(page);
   const pageTarget = pageTargetFromPage(page);
+  const pageName = pageNameFromPage(page);
 
   if (thatDay && pageTarget) {
-    return { thatDay, pageTarget };
+    return { thatDay, pageTarget, pageName };
   }
 
   const fullPage = await getFullPage(page);
   const fullPageDay = dateFromPage(fullPage);
   const fullPageTarget = pageTargetFromPage(fullPage);
+  const fullPageName = pageNameFromPage(fullPage);
 
-  return fullPageDay && fullPageTarget ? { thatDay: fullPageDay, pageTarget: fullPageTarget } : null;
+  return fullPageDay && fullPageTarget
+    ? { thatDay: fullPageDay, pageTarget: fullPageTarget, pageName: fullPageName }
+    : null;
 }
 
 async function resolveThatDayContext(): Promise<ThatDayContext | null> {
@@ -193,6 +198,11 @@ async function appendThatDayToTopLevelBlocks(asTag: boolean): Promise<void> {
       return;
     }
 
+    const isEditing = await logseq.Editor.checkEditing();
+    if (isEditing) {
+      await logseq.Editor.exitEditingMode();
+    }
+
     const blocks = (await logseq.Editor.getPageBlocksTree(context.pageTarget)) as BlockLike[];
     const label = dateLabel(context.thatDay, asTag);
     let updatedCount = 0;
@@ -206,6 +216,10 @@ async function appendThatDayToTopLevelBlocks(asTag: boolean): Promise<void> {
       updatedCount += 1;
     }
 
+    if (updatedCount > 0 && context.pageName) {
+      logseq.App.replaceState('page', { name: context.pageName });
+    }
+
     if (updatedCount === 0) {
       await logseq.UI.showMsg('No top-level blocks needed that day.', 'warning');
       return;
@@ -215,6 +229,12 @@ async function appendThatDayToTopLevelBlocks(asTag: boolean): Promise<void> {
   } catch (error) {
     console.error(error);
     await logseq.UI.showMsg('Cannot insert that day into top-level blocks.', 'error');
+  } finally {
+    try {
+      await logseq.Editor.restoreEditingCursor();
+    } catch (restoreError) {
+      console.error(restoreError);
+    }
   }
 }
 
@@ -237,8 +257,14 @@ async function insertThatDay(asTag: boolean): Promise<void> {
 function main(): void {
   logseq.Editor.registerSlashCommand('day', () => insertThatDay(false));
   logseq.Editor.registerSlashCommand('day#', () => insertThatDay(true));
-  logseq.Editor.registerSlashCommand('insert all day', () => appendThatDayToTopLevelBlocks(false));
-  logseq.Editor.registerSlashCommand('insert all day#', () => appendThatDayToTopLevelBlocks(true));
+  logseq.Editor.registerSlashCommand('insert all day', [
+    ['editor/clear-current-slash', false],
+    ['editor/hook', () => appendThatDayToTopLevelBlocks(false)],
+  ]);
+  logseq.Editor.registerSlashCommand('insert all day#', [
+    ['editor/clear-current-slash', false],
+    ['editor/hook', () => appendThatDayToTopLevelBlocks(true)],
+  ]);
 }
 
 logseq.ready(main).catch(console.error);
