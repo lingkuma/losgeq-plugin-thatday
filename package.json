@@ -1,0 +1,27 @@
+{
+  "name": "logseq-plugin-thatday",
+  "version": "0.1.0",
+  "description": "Insert the current journal page date from a slash command.",
+  "main": "dist/index.html",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build --base=./"
+  },
+  "keywords": [
+    "logseq",
+    "plugin"
+  ],
+  "license": "MIT",
+  "logseq": {
+    "id": "logseq-plugin-thatday",
+    "title": "That Day",
+    "description": "Insert the date of the current journal page."
+  },
+  "dependencies": {
+    "@logseq/libs": "^0.0.17"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vite": "^5.2.0"
+  }
+}
