@@ -26,7 +26,6 @@ type PageTarget = string | { uuid: string };
 type ThatDayContext = {
   thatDay: string;
   pageTarget: PageTarget;
-  pageName: string | null;
 };
 
 type DatascriptQuery = (query: string, ...inputs: unknown[]) => Promise<unknown>;
@@ -137,19 +136,17 @@ async function getPageFromBlockUuid(blockUuid: string | undefined): Promise<Page
 async function resolvePageContext(page: PageLike | null | undefined): Promise<ThatDayContext | null> {
   const thatDay = dateFromPage(page);
   const pageTarget = pageTargetFromPage(page);
-  const pageName = pageNameFromPage(page);
 
   if (thatDay && pageTarget) {
-    return { thatDay, pageTarget, pageName };
+    return { thatDay, pageTarget };
   }
 
   const fullPage = await getFullPage(page);
   const fullPageDay = dateFromPage(fullPage);
   const fullPageTarget = pageTargetFromPage(fullPage);
-  const fullPageName = pageNameFromPage(fullPage);
 
   return fullPageDay && fullPageTarget
-    ? { thatDay: fullPageDay, pageTarget: fullPageTarget, pageName: fullPageName }
+    ? { thatDay: fullPageDay, pageTarget: fullPageTarget }
     : null;
 }
 
@@ -214,10 +211,6 @@ async function appendThatDayToTopLevelBlocks(asTag: boolean): Promise<void> {
 
       await logseq.Editor.updateBlock(block.uuid, `${block.content.trimEnd()} ${label}`);
       updatedCount += 1;
-    }
-
-    if (updatedCount > 0 && context.pageName) {
-      logseq.App.replaceState('page', { name: context.pageName });
     }
 
     if (updatedCount === 0) {
